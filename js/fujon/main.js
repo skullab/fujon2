@@ -19,17 +19,13 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-/*
- * Global scope -> aliasing 
- * change this to refer to another scope 
- * example: 
- * var ____scope = MyCloseScope = {} ;
- */
-var ____scope = FUJON = this;
+if(typeof ____scope === 'undefined'){
+  var ____scope = this ;
+}
 
 (function(context) {
 
-	this.Context = context;
+	var Context = context;
 
 	Context.fujon = {
 		version : '0.6.1',
@@ -47,7 +43,9 @@ var ____scope = FUJON = this;
 	};
 	
 	Context.fScope = _scope ;
-
+  Context.fLibs = new _require ;
+  Context.fujon.require = Context.fLibs.load ;
+  
 	function _package() {
 		if (this == Context)
 			return;
@@ -129,5 +127,87 @@ var ____scope = FUJON = this;
 		script.text = v ;
 		document.getElementsByTagName('head')[0].appendChild(script);
 	}
-
+  
+  function _require(){
+    
+    var head = document.getElementsByTagName('head')[0] ;
+    var currentStack = 0 , maxStack ;
+    var files = [] ; 
+    var _this = this ;
+    
+    function getFiles(){
+      var f = arguments[0] , files = [] ;
+      for(var i = 0 ; i < f.length ; i++){
+        var file = f[i].replace(/\./g,'/');
+        file = file + '.js' ;
+        files.push(file);
+      }
+      return files ;
+    }
+    
+    function error404(){}
+    
+    function  fireHandler(){
+      console.log('loaded !');
+      if(currentStack == maxStack){
+        if(_this.handler)_this.handler();
+      }else{
+        append(files[currentStack]);
+      }
+    }
+    
+    function loadSync(file){
+      currentStack++ ;
+      var xml = new XMLHttpRequest();
+      var root = _this.root || '' ;
+      xml.open('GET',root + '/' + file,false);
+      xml.send('');
+      var script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.text = xml.response ;
+      head.appendChild(script);
+      if(currentStack < maxStack)loadSync(files[currentStack]);
+    }
+    
+    function append(file){
+      console.log(file);
+      currentStack++ ;
+      var root = _this.root || '' ;
+      var script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = root + '/' + file ;
+      
+        if (window.addEventListener) {
+			    script.addEventListener('load',fireHandler,false);
+          script.addEventListener('error',error404,false);
+		    } else if (window.attachEvent) {
+			    script.attachEvent('onload',fireHandler);
+          script.attachEvent('onerror',error404);
+		    }
+        
+      head.appendChild(script);
+    }
+    
+    function load(){
+      var args = Array.prototype.slice.call(arguments) , last = args.length - 1;
+      var lastArg = args[last] ;
+      if(typeof lastArg === 'function'){
+        _this.handler = lastArg ;
+        args.pop();  
+      }
+      files = getFiles(args);
+      maxStack = files.length ;
+      if(_this.handler){
+        append(files[0]);
+      }else loadSync(files[0]);
+    }
+    
+    this.setRoot = function(root){
+       this.root = root ;
+    }
+    
+    this.load = load ;
+    
+  }
+    
 })(____scope);
